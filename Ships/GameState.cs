@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Ships
 {
-    enum GameState
+    public enum GameState
     {
         OFF, PREPARATION, RUNNING
     }

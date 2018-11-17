@@ -20,10 +20,6 @@ namespace Ships
     /// </summary>
     public partial class MainWindow : Window
     {
-        private Dictionary<string, Button> _playerGridFields;
-        private Dictionary<string, Button> _enemyGridFields;
-        private GameState _gamePhase = GameState.OFF;
-
         private Player _player;
 
         public MainWindow()
@@ -34,9 +30,9 @@ namespace Ships
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             _player = new Player();
-            _playerGridFields = new Dictionary<string, Button>();
-            _enemyGridFields = new Dictionary<string, Button>();
-            _gamePhase = GameState.PREPARATION;
+            //_playerGridFields = new Dictionary<string, Button>();
+            //_enemyGridFields = new Dictionary<string, Button>();
+            Game.GAME_STATE = GameState.PREPARATION;
 
             //Load player grid
             for (int row = 0; row <= 10; row++)
@@ -80,7 +76,7 @@ namespace Ships
                             button.SetValue(Grid.RowProperty, row);
                             button.Click += new RoutedEventHandler(PlayerGridClick);
                             PlayerGrid.Children.Add(button);
-                            _playerGridFields.Add(GameConfiguration.GridCharacters[column - 1] + row, button);
+                            Game.PLAYER_GRID_FIELDS.Add(GameConfiguration.GridCharacters[column - 1] + row, button);
                         }
                     }
                 }
@@ -128,7 +124,7 @@ namespace Ships
                             button.SetValue(Grid.RowProperty, row);
                             button.Click += new RoutedEventHandler(EnemyGridClick);
                             PlayerShootingGrid.Children.Add(button);
-                            _enemyGridFields.Add(GameConfiguration.GridCharacters[column - 1] + row, button);
+                            Game._enemyGridFields.Add(GameConfiguration.GridCharacters[column - 1] + row, button);
                         }
                     }
                 }
@@ -143,7 +139,7 @@ namespace Ships
         private void PlayerGridClick(object sender, RoutedEventArgs e)
         {
             Button button = (Button)sender;
-            switch (_gamePhase)
+            switch (Game.GAME_STATE)
             {
                 case GameState.PREPARATION:
                     HandlePrepareGridClick(button);
@@ -179,10 +175,10 @@ namespace Ships
 
         private void HandlePrepareGridClick(Button button)
         {
-            int shipFlagNumber = 1;
             bool diagonalShip = false;
             bool verticalShip = false;
             bool horizontalShip = false;
+            bool wrongShip = false;
 
             //Check available ships
             if (!_player.HasAvailableShips())
@@ -196,211 +192,68 @@ namespace Ships
             int characterIndex = Array.IndexOf(GameConfiguration.GridCharacters, character);
             int id = int.Parse(tileId.Substring(1));
 
-            //Check if there are any already marked tiles around this one.
-            if(id > 1 && id < 10)
+            List<string> tilesAboveLeft = Utils.GetAboveLeftTile(characterIndex, id, Direction.DownRight);
+            List<string> tilesAboveUp = Utils.GetAboveTile(characterIndex, id, Direction.Down);
+            List<string> tilesAboveRight = Utils.GetAboveRightTile(characterIndex, id, Direction.DownLeft);
+            List<string> tilesLeft = Utils.GetLeftTile(characterIndex, id, Direction.Right);
+            List<string> tilesRight = Utils.GetRightTile(characterIndex, id, Direction.Left);
+            List<string> tilesBelowLeft = Utils.GetBelowLeftTile(characterIndex, id, Direction.UpRight);
+            List<string> tilesBelowDown = Utils.GetBelowTile(characterIndex, id, Direction.Up);
+            List<string> tilesBelowRight = Utils.GetBelowRightTile(characterIndex, id, Direction.UpLeft);
+
+            if (tilesAboveLeft == null || tilesAboveUp == null || tilesAboveRight == null || tilesLeft == null
+                || tilesRight == null || tilesBelowLeft == null || tilesBelowDown == null || tilesBelowRight == null)
+                wrongShip = true;
+
+            if((tilesAboveLeft != null && tilesAboveLeft.Count > 0) 
+                || (tilesAboveRight != null && tilesAboveRight.Count > 0)
+                || (tilesBelowLeft != null && tilesBelowLeft.Count > 0) 
+                || (tilesBelowRight != null && tilesBelowRight.Count > 0))
             {
-                int upperId = id - 1;
-                int lowerId = id + 1;
-           
-                if(characterIndex > 0 && characterIndex < GameConfiguration.GridCharacters.Length - 1)
+                diagonalShip = true;
+                if ((tilesAboveLeft != null && tilesAboveLeft.Count > 0) 
+                    && ((tilesAboveRight != null && tilesAboveRight.Count > 0) 
+                    || (tilesBelowLeft != null && tilesBelowLeft.Count > 0)))
                 {
-                    //Check upperLeft
-                    String upperLeftTileId = GameConfiguration.GridCharacters[characterIndex - 1] + upperId;
-                    if(ExistShipAt(upperLeftTileId))
-                    {
-                        diagonalShip = true;
-                        shipFlagNumber++;
-                        MessageBox.Show("Ship exist at: " + upperLeftTileId);
-                        shipFlagNumber += CheckNextTiles(upperLeftTileId, Direction.UpLeft);
-                    }
-
-                    //Check upperRight
-                    String upperRightTileId = GameConfiguration.GridCharacters[characterIndex + 1] + upperId;
-                    if(ExistShipAt(upperRightTileId))
-                    {
-                        diagonalShip = true;
-                        shipFlagNumber++;
-                        MessageBox.Show("Ship exist at: " + upperRightTileId);
-                        shipFlagNumber += CheckNextTiles(upperRightTileId, Direction.UpRight);
-                    }
-
-                    //Check lowerLeft
-                    String lowerLeftTileId = GameConfiguration.GridCharacters[characterIndex - 1] + lowerId;
-                    if (ExistShipAt(lowerLeftTileId))
-                    {
-                        diagonalShip = true;
-                        shipFlagNumber++;
-                        MessageBox.Show("Ship exist at: " + lowerLeftTileId);
-                        shipFlagNumber += CheckNextTiles(lowerLeftTileId, Direction.DownLeft);
-                    }
-
-                    //Check lowerRight
-                    String lowerRightTileId = GameConfiguration.GridCharacters[characterIndex + 1] + lowerId;
-                    if (ExistShipAt(lowerRightTileId))
-                    {
-                        diagonalShip = true;
-                        shipFlagNumber++;
-                        MessageBox.Show("Ship exist at: " + lowerRightTileId);
-                        shipFlagNumber += CheckNextTiles(lowerRightTileId, Direction.DownRight);
-                    }
-
-                    //Check left
-                    String leftTileId = GameConfiguration.GridCharacters[characterIndex - 1] + id;
-                    if (ExistShipAt(leftTileId))
-                    {
-                        horizontalShip = true;
-                        shipFlagNumber++;
-                        MessageBox.Show("Ship exist at: " + leftTileId);
-                        shipFlagNumber += CheckNextTiles(leftTileId, Direction.Left);
-                    }
-
-                    //Check right
-                    String rightTileId = GameConfiguration.GridCharacters[characterIndex + 1] + id;
-                    if (ExistShipAt(rightTileId))
-                    {
-                        horizontalShip = true;
-                        shipFlagNumber++;
-                        MessageBox.Show("Ship exist at: " + rightTileId);
-                        shipFlagNumber += CheckNextTiles(rightTileId, Direction.Right);
-                    }
+                    wrongShip = true;
                 }
-
-                //Check upper
-                String upperTileId = GameConfiguration.GridCharacters[characterIndex] + upperId;
-                if (ExistShipAt(upperTileId))
+                else if ((tilesAboveRight != null && tilesAboveRight.Count > 0) 
+                    && ((tilesAboveLeft != null && tilesAboveLeft.Count > 0) 
+                    || (tilesBelowRight != null && tilesBelowRight.Count > 0)))
                 {
-                    verticalShip = true;
-                    shipFlagNumber++;
-                    MessageBox.Show("Ship exist at: " + upperTileId);
-                    shipFlagNumber += CheckNextTiles(upperTileId, Direction.Up);
+                    wrongShip = true;
                 }
-
-                //Check lower
-                String lowerTileId = GameConfiguration.GridCharacters[characterIndex] + lowerId;
-                if(ExistShipAt(lowerTileId))
+                else if ((tilesBelowLeft != null && tilesBelowLeft.Count > 0) 
+                    && ((tilesAboveLeft != null && tilesAboveLeft.Count > 0) 
+                    || (tilesBelowRight != null && tilesBelowRight.Count > 0)))
                 {
-                    verticalShip = true;
-                    shipFlagNumber++;
-                    MessageBox.Show("Ship exist at: " + lowerTileId);
-                    shipFlagNumber += CheckNextTiles(lowerTileId, Direction.Down);
+                    wrongShip = true;
+                }
+                else if ((tilesBelowRight != null && tilesBelowRight.Count > 0) 
+                    && ((tilesBelowLeft != null && tilesBelowLeft.Count > 0) 
+                    || (tilesAboveRight != null && tilesAboveRight.Count > 0)))
+                {
+                    wrongShip = true;
                 }
             }
-            else
+
+            if((tilesAboveUp != null && tilesAboveUp.Count > 0) || (tilesBelowDown != null && tilesBelowDown.Count > 0))
             {
-                //Id == 1 or Id == 10
-                if (id == 1)
-                {
-                    //Check lower
-                    String lowerTileId = GameConfiguration.GridCharacters[characterIndex] + (id + 1);
-                    if (ExistShipAt(lowerTileId))
-                    {
-                        verticalShip = true;
-                        shipFlagNumber++;
-                        MessageBox.Show("Ship exist at: " + lowerTileId);
-                        shipFlagNumber += CheckNextTiles(lowerTileId, Direction.Down);
-                    }
+                verticalShip = true;
+            }
 
-                    if(characterIndex > 0 && characterIndex < GameConfiguration.GridCharacters.Length - 1)
-                    {
-                        //Check lowerLeft
-                        String lowerLeftTileId = GameConfiguration.GridCharacters[characterIndex - 1] + (id + 1);
-                        if (ExistShipAt(lowerLeftTileId))
-                        {
-                            diagonalShip = true;
-                            shipFlagNumber++;
-                            MessageBox.Show("Ship exist at: " + lowerLeftTileId);
-                            shipFlagNumber += CheckNextTiles(lowerLeftTileId, Direction.DownLeft);
-                        }
-
-                        //Check lowerRight
-                        String lowerRightTileId = GameConfiguration.GridCharacters[characterIndex + 1] + (id + 1);
-                        if (ExistShipAt(lowerRightTileId))
-                        {
-                            diagonalShip = true;
-                            shipFlagNumber++;
-                            MessageBox.Show("Ship exist at: " + lowerRightTileId);
-                            shipFlagNumber += CheckNextTiles(lowerRightTileId, Direction.DownRight);
-                        }
-
-                        //Check left
-                        String leftTileId = GameConfiguration.GridCharacters[characterIndex - 1] + id;
-                        if (ExistShipAt(leftTileId))
-                        {
-                            horizontalShip = true;
-                            shipFlagNumber++;
-                            MessageBox.Show("Ship exist at: " + leftTileId);
-                            shipFlagNumber += CheckNextTiles(leftTileId, Direction.Left);
-                        }
-
-                        //Check right
-                        String rightTileId = GameConfiguration.GridCharacters[characterIndex + 1] + id;
-                        if (ExistShipAt(rightTileId))
-                        {
-                            horizontalShip = true;
-                            shipFlagNumber++;
-                            MessageBox.Show("Ship exist at: " + rightTileId);
-                            shipFlagNumber += CheckNextTiles(rightTileId, Direction.Right);
-                        }
-                    }
-                }
-                else
-                {
-                    //Check upper
-                    String upperTileId = GameConfiguration.GridCharacters[characterIndex] + (id - 1);
-                    if (ExistShipAt(upperTileId))
-                    {
-                        verticalShip = true;
-                        shipFlagNumber++;
-                        MessageBox.Show("Ship exist at: " + upperTileId);
-                        shipFlagNumber += CheckNextTiles(upperTileId, Direction.Up);
-                    }
-
-                    if (characterIndex > 0 && characterIndex < GameConfiguration.GridCharacters.Length - 1)
-                    {
-                        //Check upperLeft
-                        String upperLeftTileId = GameConfiguration.GridCharacters[characterIndex - 1] + (id - 1);
-                        if (ExistShipAt(upperLeftTileId))
-                        {
-                            diagonalShip = true;
-                            shipFlagNumber++;
-                            MessageBox.Show("Ship exist at: " + upperLeftTileId);
-                            shipFlagNumber += CheckNextTiles(upperLeftTileId, Direction.UpLeft);
-                        }
-
-                        //Check upperRight
-                        String upperRightTileId = GameConfiguration.GridCharacters[characterIndex + 1] + (id - 1);
-                        if (ExistShipAt(upperRightTileId))
-                        {
-                            diagonalShip = true;
-                            shipFlagNumber++;
-                            MessageBox.Show("Ship exist at: " + upperRightTileId);
-                            shipFlagNumber += CheckNextTiles(upperRightTileId, Direction.UpRight);
-                        }
-
-                        //Check left
-                        String leftTileId = GameConfiguration.GridCharacters[characterIndex - 1] + id;
-                        if (ExistShipAt(leftTileId))
-                        {
-                            horizontalShip = true;
-                            shipFlagNumber++;
-                            MessageBox.Show("Ship exist at: " + leftTileId);
-                            shipFlagNumber += CheckNextTiles(leftTileId, Direction.Left);
-                        }
-
-                        //Check right
-                        String rightTileId = GameConfiguration.GridCharacters[characterIndex + 1] + id;
-                        if (ExistShipAt(rightTileId))
-                        {
-                            horizontalShip = true;
-                            shipFlagNumber++;
-                            MessageBox.Show("Ship exist at: " + rightTileId);
-                            shipFlagNumber += CheckNextTiles(rightTileId, Direction.Right);
-                        }
-                    }
-                }
+            if((tilesLeft != null && tilesLeft.Count > 0) || (tilesRight != null && tilesRight.Count > 0))
+            {
+                horizontalShip = true;
             }
 
             //Validate ship orientation
+            if (wrongShip)
+            {
+                MessageBox.Show("You can't place ship here!");
+                return;
+            }
+
             if (horizontalShip && diagonalShip && verticalShip)
                 return;
             else if (horizontalShip && (diagonalShip || verticalShip))
@@ -410,9 +263,36 @@ namespace Ships
             else if (diagonalShip && (horizontalShip || verticalShip))
                 return;
 
+            List<string> shipTiles = new List<string>();
+            if (tilesAboveLeft != null)
+                shipTiles.AddRange(tilesAboveLeft);
+            if (tilesAboveUp != null)
+                shipTiles.AddRange(tilesAboveUp);
+            if (tilesAboveRight != null)
+                shipTiles.AddRange(tilesAboveRight);
+            if (tilesLeft != null)
+                shipTiles.AddRange(tilesLeft);
+            if (tilesRight != null)
+                shipTiles.AddRange(tilesRight);
+            if (tilesBelowLeft != null)
+                shipTiles.AddRange(tilesBelowLeft);
+            if (tilesBelowDown != null)
+                shipTiles.AddRange(tilesBelowDown);
+            if (tilesBelowRight != null)
+                shipTiles.AddRange(tilesBelowRight);
+
+            //Check player ships
+            Ship ship = _player.GetShip(shipTiles);
+            if(ship != null)
+            {
+                _player.RemoveShip(ship);
+            }
+
+            //Add current tile
+            shipTiles.Add(tileId);
 
             //Validate ship's flag number
-            bool successValidation = ValidateShipFlagNumber(shipFlagNumber);
+            bool successValidation = ValidateShipFlagNumber(shipTiles.Count);
             if (!successValidation) return;
 
             if (button.Background == Brushes.White)
@@ -425,10 +305,10 @@ namespace Ships
                 button.Background = Brushes.White;
             }
 
-            MessageBox.Show("Your ship has " + shipFlagNumber + " flags.", "Debug");
+            //MessageBox.Show("Your ship has " + shipTiles.Count + " flags.", "Debug");
 
             //Assign ship to the player
-            _player.AddShip(shipFlagNumber);
+            _player.AddShip(new Ship(shipTiles));
         }
 
         private bool ValidateShipFlagNumber(int shipFlagNumber)
@@ -465,240 +345,11 @@ namespace Ships
             return true;
         }
 
-        //Returns the number of marked tiles in the given direction from specified tile.
-        private int CheckNextTiles(String tileId, Direction direction)
-        {
-            String character = tileId.Substring(0, 1);
-            int characterIndex = Array.IndexOf(GameConfiguration.GridCharacters, character);
-            int id = int.Parse(tileId.Substring(1));
-
-            //Check if there are any already marked tiles around this one.
-            if (id > 1 && id < 10)
-            {
-                int upperId = id - 1;
-                int lowerId = id + 1;
-
-                if (characterIndex > 0 && characterIndex < GameConfiguration.GridCharacters.Length - 1)
-                {
-                    if(direction == Direction.UpLeft)
-                    {
-                        //Check upperLeft
-                        String upperLeftTileId = GameConfiguration.GridCharacters[characterIndex - 1] + upperId;
-                        if (ExistShipAt(upperLeftTileId))
-                        {
-                            MessageBox.Show("Ship exist at: " + upperLeftTileId);
-                            return 1 + CheckNextTiles(upperLeftTileId, Direction.UpLeft);
-                        }
-                    }
-                    else if(direction == Direction.UpRight)
-                    {
-                        //Check upperRight
-                        String upperRightTileId = GameConfiguration.GridCharacters[characterIndex + 1] + upperId;
-                        if (ExistShipAt(upperRightTileId))
-                        {
-                            MessageBox.Show("Ship exist at: " + upperRightTileId);
-                            return 1 + CheckNextTiles(upperRightTileId, Direction.UpRight);
-                        }
-                    }
-                    else if(direction == Direction.DownLeft)
-                    {
-                        //Check lowerLeft
-                        String lowerLeftTileId = GameConfiguration.GridCharacters[characterIndex - 1] + lowerId;
-                        if (ExistShipAt(lowerLeftTileId))
-                        {
-                            MessageBox.Show("Ship exist at: " + lowerLeftTileId);
-                            return 1 + CheckNextTiles(lowerLeftTileId, Direction.DownLeft);
-                        }
-                    }
-                    else if(direction == Direction.DownRight)
-                    {
-                        //Check lowerRight
-                        String lowerRightTileId = GameConfiguration.GridCharacters[characterIndex + 1] + lowerId;
-                        if (ExistShipAt(lowerRightTileId))
-                        {
-                            MessageBox.Show("Ship exist at: " + lowerRightTileId);
-                            return 1 + CheckNextTiles(lowerRightTileId, Direction.DownRight);
-                        }
-                    }
-                    else if(direction == Direction.Left)
-                    {
-                        //Check left
-                        String leftTileId = GameConfiguration.GridCharacters[characterIndex - 1] + id;
-                        if (ExistShipAt(leftTileId))
-                        {
-                            MessageBox.Show("Ship exist at: " + leftTileId);
-                            return 1 + CheckNextTiles(leftTileId, Direction.Left);
-                        }
-                    }
-                    else if(direction == Direction.Right)
-                    {
-                        //Check right
-                        String rightTileId = GameConfiguration.GridCharacters[characterIndex + 1] + id;
-                        if (ExistShipAt(rightTileId))
-                        {
-                            MessageBox.Show("Ship exist at: " + rightTileId);
-                            return 1 + CheckNextTiles(rightTileId, Direction.Right);
-                        }
-                    }
-                }
-
-                if(direction == Direction.Up)
-                {
-                    //Check upper
-                    String upperTileId = GameConfiguration.GridCharacters[characterIndex] + upperId;
-                    if (ExistShipAt(upperTileId))
-                    {
-                        MessageBox.Show("Ship exist at: " + upperTileId);
-                        return 1 + CheckNextTiles(upperTileId, Direction.Up);
-                    }
-                }
-                else if(direction == Direction.Down)
-                {
-                    //Check lower
-                    String lowerTileId = GameConfiguration.GridCharacters[characterIndex] + lowerId;
-                    if (ExistShipAt(lowerTileId))
-                    {
-                        MessageBox.Show("Ship exist at: " + lowerTileId);
-                        return 1 + CheckNextTiles(lowerTileId, Direction.Down);
-                    }
-                }
-            }
-            else
-            {
-                //Id == 1 or Id == 10
-                if (id == 1)
-                {
-                    if(direction == Direction.Down)
-                    {
-                        //Check lower
-                        String lowerTileId = GameConfiguration.GridCharacters[characterIndex] + (id + 1);
-                        if (ExistShipAt(lowerTileId))
-                        {
-                            MessageBox.Show("Ship exist at: " + lowerTileId);
-                            return 1 + CheckNextTiles(lowerTileId, Direction.Down);
-                        }
-                    }
-
-                    if (characterIndex > 0 && characterIndex < GameConfiguration.GridCharacters.Length - 1)
-                    {
-                        if(direction == Direction.DownLeft)
-                        {
-                            //Check lowerLeft
-                            String lowerLeftTileId = GameConfiguration.GridCharacters[characterIndex - 1] + (id + 1);
-                            if (ExistShipAt(lowerLeftTileId))
-                            {
-                                MessageBox.Show("Ship exist at: " + lowerLeftTileId);
-                                return 1 + CheckNextTiles(lowerLeftTileId, Direction.DownLeft);
-                            }
-                        }
-                        else if(direction == Direction.DownRight)
-                        {
-                            //Check lowerRight
-                            String lowerRightTileId = GameConfiguration.GridCharacters[characterIndex + 1] + (id + 1);
-                            if (ExistShipAt(lowerRightTileId))
-                            {
-                                MessageBox.Show("Ship exist at: " + lowerRightTileId);
-                                return 1 + CheckNextTiles(lowerRightTileId, Direction.DownRight);
-                            }
-                        }
-                        else if(direction == Direction.Left)
-                        {
-                            //Check left
-                            String leftTileId = GameConfiguration.GridCharacters[characterIndex - 1] + id;
-                            if (ExistShipAt(leftTileId))
-                            {
-                                MessageBox.Show("Ship exist at: " + leftTileId);
-                                return 1 + CheckNextTiles(leftTileId, Direction.Left);
-                            }
-                        }
-                        else if(direction == Direction.Right)
-                        {
-                            //Check right
-                            String rightTileId = GameConfiguration.GridCharacters[characterIndex + 1] + id;
-                            if (ExistShipAt(rightTileId))
-                            {
-                                MessageBox.Show("Ship exist at: " + rightTileId);
-                                return 1 + CheckNextTiles(rightTileId, Direction.Right);
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    if(direction == Direction.Up)
-                    {
-                        //Check upper
-                        String upperTileId = GameConfiguration.GridCharacters[characterIndex] + (id - 1);
-                        if (ExistShipAt(upperTileId))
-                        {
-                            MessageBox.Show("Ship exist at: " + upperTileId);
-                            return 1 + CheckNextTiles(upperTileId, Direction.Up);
-                        }
-                    }
-
-                    if (characterIndex > 0 && characterIndex < GameConfiguration.GridCharacters.Length - 1)
-                    {
-                        if(direction == Direction.UpLeft)
-                        {
-                            //Check upperLeft
-                            String upperLeftTileId = GameConfiguration.GridCharacters[characterIndex - 1] + (id - 1);
-                            if (ExistShipAt(upperLeftTileId))
-                            {
-                                MessageBox.Show("Ship exist at: " + upperLeftTileId);
-                                return 1 + CheckNextTiles(upperLeftTileId, Direction.UpLeft);
-                            }
-                        }
-                        else if(direction == Direction.UpRight)
-                        {
-                            //Check upperRight
-                            String upperRightTileId = GameConfiguration.GridCharacters[characterIndex + 1] + (id - 1);
-                            if (ExistShipAt(upperRightTileId))
-                            {
-                                MessageBox.Show("Ship exist at: " + upperRightTileId);
-                                return 1 + CheckNextTiles(upperRightTileId, Direction.UpRight);
-                            }
-                        }
-                        else if(direction == Direction.Left)
-                        {
-                            //Check left
-                            String leftTileId = GameConfiguration.GridCharacters[characterIndex - 1] + id;
-                            if (ExistShipAt(leftTileId))
-                            {
-                                MessageBox.Show("Ship exist at: " + leftTileId);
-                                return 1 + CheckNextTiles(leftTileId, Direction.Left);
-                            }
-                        }
-                        else if(direction == Direction.Right)
-                        {
-                            //Check right
-                            String rightTileId = GameConfiguration.GridCharacters[characterIndex + 1] + id;
-                            if (ExistShipAt(rightTileId))
-                            {
-                                MessageBox.Show("Ship exist at: " + rightTileId);
-                                return 1 + CheckNextTiles(rightTileId, Direction.Right);
-                            }
-                        }
-                    }
-                }
-            }
-
-            return 0;
-        }
-
         private void Start_Click(object sender, RoutedEventArgs e)
         {
-            _gamePhase = GameState.RUNNING;
+            Game.GAME_STATE = GameState.RUNNING;
             Button button = (Button)sender;
             button.IsEnabled = false;
-        }
-
-        public bool ExistShipAt(String tileId)
-        {
-            if (_playerGridFields.TryGetValue(tileId, out Button tile))
-            {
-                return tile.Background == Brushes.Gray;
-            }
-            return false;
         }
     }
 }

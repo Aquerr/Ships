@@ -55,6 +55,8 @@
       <SubType>Designer</SubType>
     </ApplicationDefinition>
     <Compile Include="Direction.cs" />
+    <Compile Include="Game.cs" />
+    <Compile Include="Ship.cs" />
     <Compile Include="ShipType.cs" />
     <Compile Include="Utils.cs" />
     <Page Include="MainWindow.xaml">
